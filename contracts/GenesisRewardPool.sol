@@ -290,7 +290,7 @@ contract BathGenesisRewardPool {
         owner = _owner;
     }
 
-    function governanceRecoverUnsupported(IERC20 _token, uint256 amount, address to) external onlyOperator {
+    function governanceRecoverUnsupported(IERC20 _token, uint256 amount, address to) external onlyPoolOfficer {
         if (block.timestamp < poolEndTime + 90 days) {
             // do not allow to drain core token (BATH or lps) if less than 90 days after pool ends
             require(_token != bath, "bath");
