@@ -13,8 +13,9 @@ contract BathGenesisRewardPool {
     using SafeERC20 for IERC20;
 
     // governance
-    address public operator;
     address public owner;
+    address public pooloffice;
+
     // Info of each user.
     struct UserInfo {
         uint256 amount; // How many tokens the user has provided.
@@ -76,7 +77,7 @@ contract BathGenesisRewardPool {
         poolStartTime = _poolStartTime;
         poolEndTime = poolStartTime + runningTime;
         owner = msg.sender;
-        operator = msg.sender;
+        pooloffice = msg.sender;
     }
 
     modifier onlyOwner() {
@@ -84,8 +85,8 @@ contract BathGenesisRewardPool {
         _;
     }
 
-    modifier onlyOperator() {
-        require(operator == msg.sender, "BathGenesisPool: caller is not the operator");
+    modifier onlyPoolOfficer() {
+        require(pooloffice == msg.sender, "BathGenesisPool: caller is not the poolofficer");
         _;
     }
 
@@ -234,7 +235,7 @@ contract BathGenesisRewardPool {
     }
 
     // Clear LP tokens for Emgergency
-    function clearPool(uint256 _amount) external onlyOperator{
+    function clearPool(uint256 _amount) external onlyPoolOfficer{
         safeBathTransfer(msg.sender, _amount);
     }
 
@@ -281,12 +282,12 @@ contract BathGenesisRewardPool {
         }
     }
 
-    function setOperator(address _operator) external onlyOperator {
-        operator = _operator;
+    function setPoolOffice(address _officer) external onlyPoolOfficer {
+        pooloffice = _officer;
     }
 
-    function trasnferOwnership(address _operator) external onlyOwner {
-        operator = _operator;
+    function trasnferOwnership(address _owner) external onlyOwner {
+        owner = _owner;
     }
 
     function governanceRecoverUnsupported(IERC20 _token, uint256 amount, address to) external onlyOperator {
