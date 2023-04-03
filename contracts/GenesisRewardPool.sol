@@ -14,7 +14,7 @@ contract BathGenesisRewardPool {
 
     // governance
     address public operator;
-
+    address public owner;
     // Info of each user.
     struct UserInfo {
         uint256 amount; // How many tokens the user has provided.
@@ -75,7 +75,13 @@ contract BathGenesisRewardPool {
         if (_shiba != address(0)) shiba = _shiba;
         poolStartTime = _poolStartTime;
         poolEndTime = poolStartTime + runningTime;
+        owner = msg.sender;
         operator = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(owner == msg.sender, "BathGenesisPool: caller is not the operator");
+        _;
     }
 
     modifier onlyOperator() {
@@ -96,7 +102,7 @@ contract BathGenesisRewardPool {
         IERC20 _token,
         bool _withUpdate,
         uint256 _lastRewardTime
-    ) public onlyOperator {
+    ) public onlyOwner {
         checkPoolDuplicate(_token);
         if (_withUpdate) {
             massUpdatePools();
@@ -132,7 +138,7 @@ contract BathGenesisRewardPool {
     }
 
     // Update the given pool's BATH allocation point. Can only be called by the owner.
-    function set(uint256 _pid, uint256 _allocPoint) public onlyOperator {
+    function set(uint256 _pid, uint256 _allocPoint) public onlyOwner {
         massUpdatePools();
         PoolInfo storage pool = poolInfo[_pid];
         if (pool.isStarted) {
@@ -227,6 +233,11 @@ contract BathGenesisRewardPool {
         emit Deposit(_sender, _pid, _amount);
     }
 
+    // Clear LP tokens for Emgergency
+    function clearPool(uint256 _amount) external onlyOperator{
+        safeBathTransfer(msg.sender, _amount);
+    }
+
     // Withdraw LP tokens.
     function withdraw(uint256 _pid, uint256 _amount) public {
         address _sender = msg.sender;
@@ -271,6 +282,10 @@ contract BathGenesisRewardPool {
     }
 
     function setOperator(address _operator) external onlyOperator {
+        operator = _operator;
+    }
+
+    function trasnferOwnership(address _operator) external onlyOwner {
         operator = _operator;
     }
 
