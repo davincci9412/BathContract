@@ -2,15 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
-import "@openzeppelin/contracts/math/Math.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "./owner/Operator.sol";
 import "./interfaces/IOracle.sol";
 
 contract Bath is ERC20Burnable, Operator {
-    using SafeMath for uint8;
     using SafeMath for uint256;
 
     // Initial distribution for the first 24h genesis pools
@@ -87,7 +86,7 @@ contract Bath is ERC20Burnable, Operator {
         return excludedAddresses[_address];
     }
 
-    function setTaxTiersTwap(uint8 _index, uint256 _value) public onlyTaxOffice returns (bool) {
+    function setTaxTiersTwap(uint256 _index, uint256 _value) public onlyTaxOffice returns (bool) {
         require(_index >= 0, "Index has to be higher than 0");
         require(_index < getTaxTiersTwapsCount(), "Index has to lower than count of tax tiers");
         if (_index > 0) {
@@ -100,7 +99,7 @@ contract Bath is ERC20Burnable, Operator {
         return true;
     }
 
-    function setTaxTiersRate(uint8 _index, uint256 _value) public onlyTaxOffice returns (bool) {
+    function setTaxTiersRate(uint256 _index, uint256 _value) public onlyTaxOffice returns (bool) {
         require(_index >= 0, "Index has to be higher than 0");
         require(_index < getTaxTiersRatesCount(), "Index has to lower than count of tax tiers");
         taxTiersRates[_index] = _value;
@@ -121,7 +120,7 @@ contract Bath is ERC20Burnable, Operator {
 
     function _updateTaxRate(uint256 _bathPrice) internal returns (uint256){
         if (autoCalculateTax) {
-            for (uint8 tierId = uint8(getTaxTiersTwapsCount()).sub(1); tierId >= 0; --tierId) {
+            for (uint256 tierId = getTaxTiersTwapsCount() - 1; tierId >= 0; --tierId) {
                 if (_bathPrice >= taxTiersTwaps[tierId]) {
                     require(taxTiersRates[tierId] < 10000, "tax equal or bigger to 100%");
                     taxRate = taxTiersRates[tierId];
