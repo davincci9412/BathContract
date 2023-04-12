@@ -7,7 +7,7 @@ async function main() {
   
     console.log("Account balance:", (await deployer.getBalance()).toString());
   
-    const BathTokenContract = await ethers.getContractFactory("Bath");
+    const BathTokenContract = await ethers.getContractFactory("BathToken");
 
     const taxRate = 5;
     const taxCollectorAddress = "0xe5C538024188eD687a26C88390c7433c6a09F909";
@@ -15,8 +15,6 @@ async function main() {
     const BathToken = await BathTokenContract.deploy(taxRate,taxCollectorAddress);
   
     console.log("Token address:", BathToken.address);
-
-    console.log("Verifying address: ", BathToken.address);
 
     await hre.run("verify:verify", {
       address: BathToken.address,

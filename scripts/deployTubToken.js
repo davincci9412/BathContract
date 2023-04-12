@@ -1,3 +1,5 @@
+const hre = require("hardhat");
+
 async function main() {
     const [deployer] = await ethers.getSigners();
   
@@ -5,15 +7,20 @@ async function main() {
   
     console.log("Account balance:", (await deployer.getBalance()).toString());
   
-    const TubTokenContract = await ethers.getContractFactory("Tub");
+    const TubTokenContract = await ethers.getContractFactory("TubToken");
 
-    const startTime = 0;
-    const communityFundAddress = "0xe5C538024188eD687a26C88390c7433c6a09F909";
-    const devFundAddress = "0xe5C538024188eD687a26C88390c7433c6a09F909";
+    const taxRate = 0;
+    const taxCollectorAddress = "0xe5C538024188eD687a26C88390c7433c6a09F909";
 
-    const TubToken = await TubTokenContract.deploy(startTime,communityFundAddress,devFundAddress);
+    const TubToken = await TubTokenContract.deploy(taxRate,taxCollectorAddress);
   
     console.log("Token address:", TubToken.address);
+
+    await hre.run("verify:verify", {
+      address: TubToken.address,
+      constructorArguments: [taxRate, taxCollectorAddress],
+    });
+
   }
   
   main()
