@@ -17,6 +17,8 @@ contract tGenesisFarm is Ownable {
         uint256 amount;
         /// How many unclaimed rewards does the user have pending.
         uint256 rewardDebt;
+        /// How many baths the user claimed.
+        uint256 claimedBath;
     }
 
     /// Pool-specific information.
@@ -300,6 +302,7 @@ contract tGenesisFarm is Ownable {
         uint256 _pending = ((user.amount * pool.accBathPerShare) / 1e18) - user.rewardDebt;
         if (_pending > 0) {
             safeBathTransfer(_sender, _pending);
+            user.claimedBath = user.claimedBath + _pending;
             emit RewardPaid(_sender, _pending);
         }
         if (_amount > 0) {
