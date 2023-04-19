@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 // Note that this pool has no minter key of BATH (rewards).
 // Instead, rewards will be sent to this pool at the beginning.
-contract tGenesisFarm is Ownable {
+contract Jacuzzi is Ownable {
     using SafeERC20 for IERC20;
 
     /// User-specific information.
@@ -35,9 +35,11 @@ contract tGenesisFarm is Ownable {
         uint256 accBathPerShare;
         /// Deposit fee in %, where 100 == 1%.
         uint16 depositFee;
+        uint16 withdrawFee;
         /// Is the pool rewards emission started.
         bool isStarted;
-        /// Deposit fee in %, where 100 == 1%.
+        /// Pool claimed Amount
+        uint256 poolClaimedBath;
     }
 
     /// Reward token.
@@ -71,10 +73,10 @@ contract tGenesisFarm is Ownable {
 
     /* Events */
 
-    event AddPool(address indexed user, uint256 indexed pid, uint256 allocPoint, uint256 totalAllocPoint, uint16 depositFee);
-    event ModifyPool(address indexed user, uint256 indexed pid, uint256 allocPoint, uint256 totalAllocPoint, uint16 depositFee);
+    event AddPool(address indexed user, uint256 indexed pid, uint256 allocPoint, uint256 totalAllocPoint, uint16 depositFee, uint16 withdrawFee);
+    event ModifyPool(address indexed user, uint256 indexed pid, uint256 allocPoint, uint256 totalAllocPoint, uint16 depositFee, uint16 withdrawFee);
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount, uint256 depositFee);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount, uint16 withdrawFee);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event RewardPaid(address indexed user, uint256 amount);
     event UpdateFeeCollector(address indexed user, address feeCollector);
@@ -126,13 +128,16 @@ contract tGenesisFarm is Ownable {
     /// @param _allocPoint Allocations points assigned to the pool
     /// @param _token Address of token to be staked in the pool
     /// @param _depositFee Deposit fee in % (where 100 == 1%)
+    /// @param _withdrawFee Deposit fee in % (where 100 == 1%)
     /// @param _withUpdate Whether to trigger update of all existing pools
     /// @param _lastRewardTime Start time of the emissions from the pool
+
     /// @dev Can only be called by the Operator.
     function add(
         uint256 _allocPoint,
         IERC20 _token,
         uint16 _depositFee,
+        uint16 _withdrawFee,
         bool _withUpdate,
         uint256 _lastRewardTime
     ) public onlyOwnerOrOfficer {
@@ -165,23 +170,27 @@ contract tGenesisFarm is Ownable {
             allocPoint : _allocPoint,
             lastRewardTime : _lastRewardTime,
             accBathPerShare : 0,
-            depositFee: _depositFee,
-            isStarted : _isStarted
+            depositFee : _depositFee,
+            withdrawFee : _withdrawFee,
+            isStarted : _isStarted,
+            poolClaimedBath : 0
             }));
         if (_isStarted) {
             totalAllocPoint = totalAllocPoint + _allocPoint;
         }
 
-        emit AddPool(msg.sender, poolInfo.length - 1, _allocPoint, totalAllocPoint, _depositFee);
+        emit AddPool(msg.sender, poolInfo.length - 1, _allocPoint, totalAllocPoint, _depositFee, _withdrawFee);
     }
 
     /// Update the given pool's parameters.
     /// @param _pid Id of an existing pool
     /// @param _allocPoint New allocations points assigned to the pool
     /// @param _depositFee New deposit fee assigned to the pool
+    /// @param _withdrawFee New deposit fee assigned to the pool
     /// @dev Can only be called by the Operator.
-    function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFee) public onlyOwnerOrOfficer {
+    function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint16 _withdrawFee) public onlyOwnerOrOfficer {
         require(_depositFee <= 1500, "Deposit fee cannot be higher than 15%");
+        require(_withdrawFee <= 1500, "Withdarw fee cannot be higher than 15%");
         massUpdatePools();
         PoolInfo storage pool = poolInfo[_pid];
         if (pool.isStarted) {
@@ -189,8 +198,8 @@ contract tGenesisFarm is Ownable {
         }
         pool.allocPoint = _allocPoint;
         pool.depositFee = _depositFee;
-
-        emit ModifyPool(msg.sender, _pid, _allocPoint, totalAllocPoint, _depositFee);
+        pool.withdrawFee = _withdrawFee;
+        emit ModifyPool(msg.sender, _pid, _allocPoint, totalAllocPoint, _depositFee, _withdrawFee);
     }
 
     /// Return amount of accumulated rewards over the given time, according to the bath per second emission.
@@ -299,18 +308,29 @@ contract tGenesisFarm is Ownable {
         UserInfo storage user = userInfo[_pid][_sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
+        uint256 bathBalance = bath.balanceOf(address(this));
         uint256 _pending = ((user.amount * pool.accBathPerShare) / 1e18) - user.rewardDebt;
-        if (_pending > 0) {
+        
+        if (_pending > 0 && bathBalance > _pending) {
             safeBathTransfer(_sender, _pending);
             user.claimedBath = user.claimedBath + _pending;
+            pool.poolClaimedBath = pool.poolClaimedBath + _pending;
             emit RewardPaid(_sender, _pending);
         }
         if (_amount > 0) {
+            if(pool.withdrawFee > 0) {
+                uint256 withdrawFeeAmount = (_amount * pool.withdrawFee) / 10000;
+                pool.token.safeTransfer(feeCollector, withdrawFeeAmount);
+                pool.token.safeTransfer(_sender, _amount - withdrawFeeAmount);
+            }    
+            else {   
+                pool.token.safeTransfer(_sender, _amount);
+            }
             user.amount = user.amount - _amount;
-            pool.token.safeTransfer(_sender, _amount);
         }
         user.rewardDebt = (user.amount * pool.accBathPerShare) / 1e18;
-        emit Withdraw(_sender, _pid, _amount);
+
+        emit Withdraw(_sender, _pid, _amount, pool.withdrawFee);
     }
 
     /// Withdraw tokens from a pool without rewards. ONLY IN CASE OF EMERGENCY.
